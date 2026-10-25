@@ -1,0 +1,47 @@
+# Protocol-mode template: plain HTTP with browser-like TLS via curl_cffi.
+# Use only when recon shows no JS-only challenge. Keep `retries: 0` on
+# non-idempotent signup POSTs unless the target is known to deduplicate.
+name: generic-protocol-otp
+description: HTTP signup + mailbox OTP + token extract
+mode: protocol
+protocol:
+  impersonate: chrome
+  headers:
+    Accept: application/json
+mail:
+  provider: imap                      # or outlook_graph / cloudflare_temp_email
+  code_regex: '(?<!\d)(\d{6})(?!\d)'
+  sender_contains: ""
+  subject_contains: ""
+steps:
+  - request:
+      method: POST
+      url: "https://example.com/api/signup"
+      json:
+        email: "{{email}}"
+        password: "{{password}}"
+      expect: [200, 201]
+  - otp:
+      timeout: 180
+  - request:
+      method: POST
+      url: "https://example.com/api/verify"
+      json:
+        email: "{{email}}"
+        code: "{{otp}}"
+      expect: 200
+      save: verify_response
+  - extract:
+      from: last_json
+      path: data.token
+      as: token
+  - assert:
+      var: token
+      exists: true
+verify:
+  request:
+    method: GET
+    url: "https://example.com/api/me"
+    headers:
+      Authorization: "Bearer {{token}}"
+    expect: 200

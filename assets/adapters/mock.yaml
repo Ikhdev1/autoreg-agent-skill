@@ -1,0 +1,45 @@
+# Local end-to-end target served by scripts/mock_site.py.
+# Run: python scripts/mock_site.py --port 8765
+#      python scripts/autoreg.py --home <project> run mock.yaml --count 1 \
+#        --engine patchright --var base_url=http://127.0.0.1:8765
+name: mock-otp
+description: Local signup + email OTP + static captcha token (tests only)
+mode: browser
+stealth: false
+engine: auto
+vars:
+  signup_url: "{{base_url}}/signup"
+mail:
+  provider: mock
+  base: "{{base_url}}"
+  code_regex: "Your code is (\\d{6})"
+  subject_contains: "verification"
+captcha:
+  provider: static
+  type: turnstile
+  token: mock-token
+  sitekey: mock-sitekey
+steps:
+  - goto: "{{signup_url}}"
+  - fill:
+      target: "#name"
+      value: "{{full_name}}"
+  - fill:
+      target: "#email"
+      value: "{{email}}"
+  - fill:
+      target: "#password"
+      value: "{{password}}"
+  - click: "#send-code"
+  - wait_for: "#code-sent"
+  - otp:
+      target: "#code"
+  - captcha:
+      provider: static
+  - click: "#create"
+  - wait_for:
+      target: "text=Welcome"
+      timeout: 30
+verify:
+  url: "{{base_url}}/welcome"
+  selector: "text=Sign out"

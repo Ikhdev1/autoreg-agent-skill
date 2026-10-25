@@ -1,0 +1,11 @@
+playwright>=1.60
+patchright>=1.63
+camoufox>=0.5
+curl_cffi>=0.16
+PyYAML>=6.0
+cryptography>=45
+requests>=2.32
+
+# Optional, not required by the default engines:
+# cloakbrowser>=0.6   # patched Chromium; ~562 MB binary on first launch
+# nodriver>=0.50      # system Chrome over direct CDP; async API

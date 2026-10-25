@@ -1,0 +1,53 @@
+# Generic email+password+OTP signup.
+# Replace selectors with values from `autoreg recon`; keep the comments honest.
+name: generic-email-otp
+description: Email, password, OTP, optional captcha
+mode: browser
+stealth: true
+engine: auto
+vars:
+  signup_url: "https://example.com/signup"
+mail:
+  provider: cloudflare_temp_email      # configure mail.providers in .autoreg/config.yaml
+  code_regex: '(?<!\d)(\d{6})(?!\d)'
+  sender_contains: ""
+  subject_contains: ""
+captcha:
+  provider: none                       # none | static | 2captcha | yescaptcha | local | manual
+  type: turnstile
+  sitekey: "TODO"                      # recon usually finds this
+steps:
+  - goto: "{{signup_url}}"
+  - wait_for: "input[type=email]"
+  - fill:
+      target: "input[type=email]"
+      value: "{{email}}"
+  - action: fill
+    target: "input[type=password]"
+    value: "{{password}}"
+    optional: true
+  - action: fill
+    target: "input[name*=name i]"
+    value: "{{full_name}}"
+    optional: true
+  - action: click
+    target: "button[type=submit]"
+    optional: true
+  - otp:
+      timeout: 180
+  - action: fill
+    target: "input[name*=code i], input[autocomplete=one-time-code]"
+    value: "{{otp}}"
+    optional: true
+  - action: captcha
+    provider: none
+    optional: true
+  - action: click
+    target: "button[type=submit]"
+    optional: true
+  - wait_for:
+      target: "text=Welcome"
+      timeout: 30
+verify:
+  url: "{{signup_url}}"
+  selector: "text=Sign out"

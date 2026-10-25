@@ -1,0 +1,26 @@
+# Local project state: keys, accounts, profiles, artifacts, captures
+/.autoreg/
+/PROJECT_STATE.md
+/key
+/accounts.db
+/accounts.db-*
+/profiles/
+/artifacts/
+/runs/
+/recon/
+/adapters/
+
+# Secrets and logs
+.env
+.env.*
+!.env.example
+*.log
+*.har
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.venv/
+venv/

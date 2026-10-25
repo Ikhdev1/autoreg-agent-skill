@@ -1,0 +1,40 @@
+# Two-phase signup/confirm with a catch-all domain.
+# Phase A: signup only, stored as `pending` (defer: true).
+# Phase B: `autoreg verify <this> --all` reads the confirmation link and clicks it.
+# Configure the IMAP inbox in .autoreg/config.yaml; set alias_domain to your
+# catch-all domain (or replace it with alias.template for a Gmail plus-alias).
+name: catchall-two-phase
+description: Signup now, confirm later via catch-all IMAP
+mode: browser
+stealth: true
+vars:
+  signup_url: "https://target.example/signup"
+mail:
+  provider: imap
+  create: false
+  defer: true
+  catch_all: true
+  alias_domain: "mail.example.com"
+  alias_prefix: "pk"
+  search: 'TO "{address}"'
+  mailboxes: [INBOX, "[Gmail]/All Mail"]
+  link_regex: 'https://[^\s"<>]+/(?:confirm|verify)[^\s"<>]*'
+  subject_contains: "confirm"
+  timeout: 300
+steps:
+  - goto: "{{signup_url}}"
+  - wait_for: "input[type=email]"
+  - fill: {target: "input[type=email]", value: "{{email}}"}
+  - fill: {target: "input[type=password]", value: "{{password}}"}
+  - click: "button[type=submit]"
+  - wait_for:
+      target: "text=check your email"
+      timeout: 30
+verify:
+  - otp:
+      link_regex: 'https://[^\s"<>]+/(?:confirm|verify)[^\s"<>]*'
+      timeout: 300
+  - goto: "{{otp_link}}"
+  - wait_for:
+      target: "text=confirmed"
+      timeout: 30

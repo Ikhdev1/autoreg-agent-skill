@@ -1,0 +1,35 @@
+# Gmail +alias + IMAP code, generic browser signup.
+# Put the IMAP credentials in .autoreg/config.yaml:
+#   mail.providers.imap: {host: imap.gmail.com, user: base@gmail.com, password: ${GMAIL_APP_PW}}
+name: gmail-alias-imap
+description: Gmail plus-alias signup with IMAP OTP
+mode: browser
+stealth: true
+vars:
+  signup_url: "https://target.example/signup"
+mail:
+  provider: imap
+  alias:
+    template: "{user}+{tag}@gmail.com"
+    tag_prefix: reg
+  search: 'TO "{address}"'
+  mailboxes: [INBOX, "[Gmail]/All Mail"]
+  code_regex: '(?<!\d)(\d{6})(?!\d)'
+  subject_contains: "verification"
+  timeout: 180
+steps:
+  - goto: "{{signup_url}}"
+  - wait_for: "input[type=email]"
+  - fill: {target: "input[type=email]", value: "{{email}}"}
+  - fill: {target: "input[type=password]", value: "{{password}}"}
+  - click: "button[type=submit]"
+  - otp:
+      target: "input[autocomplete=one-time-code], input[name*=code i]"
+      timeout: 180
+  - click: "button[type=submit]"
+  - wait_for:
+      target: "text=Welcome"
+      timeout: 30
+verify:
+  url: "{{signup_url}}"
+  selector: "text=Sign out"

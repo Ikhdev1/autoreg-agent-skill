@@ -1,0 +1,37 @@
+# JSON-RPC behind a Cloudflare-protected page.
+# Direct HTTP gets 403; fetch() from the logged-in page carries cookies and
+# sessionStorage. Verify the RPC id/field names with recon; they change.
+name: jsonrpc-browser
+description: Browser login + in-page JSON-RPC call + token extract
+mode: browser
+stealth: true
+vars:
+  login_url: "https://target.example/login"
+  rpc_url: "https://target.example/rpc"
+steps:
+  - goto: "{{login_url}}"
+  - wait_for: "input[type=email]"
+  - fill: {target: "input[type=email]", value: "{{email}}"}
+  - fill: {target: "input[type=password]", value: "{{password}}"}
+  - click: "button[type=submit]"
+  - wait_for: "text=Dashboard"
+  - eval: "() => sessionStorage.getItem('AUTH_TOKEN')"
+    as: auth_token
+  - browser_fetch:
+      method: POST
+      url: "{{rpc_url}}"
+      headers:
+        x-auth-token: "{{auth_token}}"
+        Content-Type: application/json
+      json:
+        id: 310
+        query: {}
+      expect: 200
+      save: rpc
+  - extract:
+      from: rpc
+      path: result.token
+      as: rpc_token
+  - assert: {var: rpc_token, exists: true}
+verify:
+  js: "() => !!sessionStorage.getItem('AUTH_TOKEN')"
