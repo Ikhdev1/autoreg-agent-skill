@@ -880,8 +880,8 @@ def _do_otp(ctx: FlowContext, params: dict[str, Any]) -> Any:
     ctx.set_var("otp_link", result.link or "")
     ctx.set_var("otp_sender", result.message.sender)
     ctx.set_var("otp_subject", result.message.subject)
-    ctx.log(f"mail: code={result.code or '-'} link={'yes' if result.link else 'no'} "
-            f"from={result.message.sender!r} subject={result.message.subject!r}")
+    ctx.log(f"mail: code={'received' if result.code else 'none'} "
+            f"link={'yes' if result.link else 'no'}")
     target = params.get("target")
     if target and result.code:
         resolve_locator(ctx.page, target).fill(result.code, timeout=_timeout_ms(params, ctx))
@@ -973,7 +973,7 @@ def _do_extract(ctx: FlowContext, params: dict[str, Any]) -> Any:
     else:
         raise ConfigError("extract needs js, selector/target or regex")
     ctx.set_var(str(name), value)
-    ctx.log(f"extract {name}={redact(value)}")
+    ctx.log(f"extract {name}: {'found' if value is not None else 'missing'}")
     return value
 
 

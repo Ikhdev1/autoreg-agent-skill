@@ -189,7 +189,7 @@ deferred `pending` verification, runs protocol mode, and exercises
 `browser_fetch`, `fill_native`, `solve_image_captcha`, `mouse_click` and
 `click_by_vision` against the mock grid, plus deferred confirmation with a
 token-protected inbox in both modes. Verified release baseline:
-**42 unit tests, 10 e2e tests**.
+**44 unit tests, 10 e2e tests**.
 
 Full smoke on all three engines:
 
@@ -210,6 +210,14 @@ not bundled. The pack does not require Docker.
 - `.autoreg/key` decrypts `accounts.db`. Back it up with the DB; never commit
   either.
 - Export with secrets only on explicit request (`accounts export --secrets`).
+- Automatic OTP/extract logs report presence, not the code, email subject or
+  extracted credential value. Explicit `mail test --wait` output still returns
+  the requested code.
+- Recon HAR/HTML/screenshots and failure captures contain raw page content;
+  keep `.autoreg/` local. Encryption of the account database does not encrypt
+  browser profiles or capture files.
+- `.gitattributes` keeps shell launchers LF on Windows, even with
+  `core.autocrlf=true`.
 - Adapters can execute Python hooks. Review third-party adapters before running.
 - Use only on services where account creation is authorized; respect terms,
   rate limits and local law.

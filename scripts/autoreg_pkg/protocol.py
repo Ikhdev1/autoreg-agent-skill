@@ -208,7 +208,8 @@ def _otp(ctx: FlowContext, params: dict[str, Any]) -> Any:
     ctx.mail_ids.add(result.message.id)
     ctx.set_var("otp", result.code or "")
     ctx.set_var("otp_link", result.link or "")
-    ctx.log(f"mail: code={result.code or '-'} link={'yes' if result.link else 'no'}")
+    ctx.log(f"mail: code={'received' if result.code else 'none'} "
+            f"link={'yes' if result.link else 'no'}")
     return result.code
 
 
@@ -246,7 +247,7 @@ def _extract(ctx: FlowContext, params: dict[str, Any]) -> Any:
     else:
         value = data
     ctx.set_var(str(name), value)
-    ctx.log(f"extract {name}={redact(value)}")
+    ctx.log(f"extract {name}: {'found' if value is not None else 'missing'}")
     return value
 
 

@@ -525,6 +525,60 @@ class MailArmTest(unittest.TestCase):
         self.assertEqual(ctx.mail_ids, {"m1"})
 
 
+class AutomaticLogPrivacyTest(unittest.TestCase):
+    def _context(self, directory, mode):
+        from autoreg_pkg.flow import Adapter, FlowContext
+        provider = _StaticProvider([_msg("privacy-mail", "Your code is 639517")])
+        provider.items[0].subject = "Your verification code: 639517"
+        return FlowContext(
+            settings=Settings(home=directory),
+            adapter=Adapter(path=directory / "privacy.yaml", data={
+                "name": "privacy", "mode": mode, "steps": [{"log": "start"}],
+                "mail": {"provider": "mock"}}),
+            store=None, run_id="privacy", attempt=1, email="a@mock.test",
+            password="fixture-password", mailbox=mail_module.Mailbox("a@mock.test"),
+            mail_provider=provider, profile={}, profile_dir=directory,
+            proxy=None, artifacts_dir=directory,
+        )
+
+    def test_otp_is_available_to_flow_but_absent_from_logs(self):
+        import contextlib
+        import io
+        from autoreg_pkg.flow import _do_otp
+        from autoreg_pkg.protocol import _otp
+        with tempfile.TemporaryDirectory() as tmp:
+            for mode, action in (("browser", _do_otp), ("protocol", _otp)):
+                with self.subTest(mode=mode):
+                    ctx = self._context(Path(tmp), mode)
+                    output = io.StringIO()
+                    with contextlib.redirect_stderr(output):
+                        code = action(ctx, {"timeout": 1, "interval": 0.01})
+                    self.assertEqual(code, "639517")
+                    self.assertEqual(ctx.vars["otp"], code)
+                    self.assertNotIn(code, output.getvalue())
+                    self.assertNotIn(code, "\n".join(ctx.log_lines))
+
+    def test_extracted_credentials_are_not_automatically_logged(self):
+        import contextlib
+        import io
+        from autoreg_pkg.flow import _do_extract
+        from autoreg_pkg.protocol import _extract
+        secret = "fixture-private-credential-3e5c"
+        with tempfile.TemporaryDirectory() as tmp:
+            for mode, action in (("browser", _do_extract), ("protocol", _extract)):
+                with self.subTest(mode=mode):
+                    ctx = self._context(Path(tmp), mode)
+                    ctx.vars["response"] = {"credential": secret}
+                    output = io.StringIO()
+                    with contextlib.redirect_stderr(output):
+                        value = action(ctx, {"as": "credential", "from": "response",
+                                             "path": "credential"})
+                    self.assertEqual(value, secret)
+                    self.assertEqual(ctx.vars["credential"], secret)
+                    self.assertNotIn(secret, output.getvalue())
+                    self.assertNotIn(secret, "\n".join(ctx.log_lines))
+
+
 class VerifyStatusTest(unittest.TestCase):
     """A restore problem must never be reported as an invalid account."""
 
