@@ -1,5 +1,7 @@
 # Autoreg — Account Registration Automation for AI Agents
 
+**English** | [Русский](README.ru.md)
+
 **An agent skill and Python CLI for repeatable signup and email verification workflows.**
 
 Autoreg turns a service's registration flow into a reusable YAML adapter. It combines browser and HTTP execution, email OTP retrieval, persistent account profiles, proxy routing, verification, and encrypted credential storage in one project-oriented workflow.
