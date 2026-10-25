@@ -1,181 +1,141 @@
-# autoreg — agent skill v1.7.0
+# Autoreg — Account Registration Automation for AI Agents
 
-На коленке собранный, но проверенный пак для агента: разобрать регистрацию на
-новом сервисе, собрать YAML-адаптер, пройти форму через браузер или HTTP,
-получить OTP из почты и сохранить проверенный аккаунт в шифрованной базе.
-Это skill с CLI-движком, а не набор готовых аккаунтов или ключей.
+**An agent skill and Python CLI for repeatable signup and email verification workflows.**
 
-**Автор и соцсети:** [@ikhdev](https://t.me/ikhdev).
+Autoreg turns a service's registration flow into a reusable YAML adapter. It combines browser and HTTP execution, email OTP retrieval, persistent account profiles, proxy routing, verification, and encrypted credential storage in one project-oriented workflow.
 
-## Что внутри
+**Version:** 1.7.0 · **Maintainer:** [@ikhdev](https://t.me/ikhdev)
 
-- Camoufox, Patchright, Playwright и опциональный `invisible_playwright`;
-  `curl_cffi` для protocol-режима. `auto` обычно выбирает Patchright,
-  `stealth: true` — Camoufox; `invisible` включается явно.
-- Почта: Voidash, mail.tm/mail.gw, IMAP, Outlook Graph, Gmail-алиасы,
-  catch-all, Cloudflare Worker и настраиваемый HTTP-провайдер.
-- OTP, интеграции 2captcha/YesCaptcha/local/manual, vision/STT-пайплайны,
-  клики по скриншоту и CDP-мышь. Ключи и модели подключаются отдельно.
-- Один профиль, ящик и прокси на аккаунт; recon-отчёт и генерация адаптера.
-- SQLite + Fernet: пароли, прокси и доступ к почте; экспорт JSON/CSV/JSONL.
-- Отложенная проверка `pending → verify`: доступ к временному ящику и
-  использованные ID писем переживают перезапуск процесса.
-- 8 адаптеров-шаблонов и справочники для агента.
+[Download the latest release](https://github.com/Ikhdev1/autoreg-agent-skill/releases/latest) · [Agent instructions](SKILL.md) · [Adapter reference](references/adapters.md)
 
-Новый сервис требует своего адаптера и доступных провайдеров. Встроенные e2e
-проверяют локальный mock-сайт; гарантии регистрации любого сайта с первого
-запуска нет. SMS пока подключается только через hook.
+## Features
 
-## Изменения версий
+- **Registration flow discovery:** inspect forms, controls, requests, and protection signals; generate a report and a starter YAML adapter.
+- **Browser and HTTP execution:** run interactive flows with Patchright, Playwright, Camoufox, or optional `invisible_playwright`; use `curl_cffi` for protocol-based workflows.
+- **Email verification:** retrieve codes and confirmation links through Voidash, mail.tm, mail.gw, IMAP, Outlook Graph, Cloudflare Workers, or a configurable HTTP provider.
+- **Persistent account context:** associate each account with its browser profile, mailbox, and proxy assignment; reuse that context across retries.
+- **Deferred confirmation:** save an account as `pending`, then restore its encrypted mailbox session in a separate `verify` process without excluding messages that arrived in the meantime.
+- **CAPTCHA integrations:** connect 2captcha, YesCaptcha, local services, or manual handling. Vision and speech-to-text workflows use separately configured model endpoints.
+- **Interaction tools:** selector-based actions, native-style input, segmented OTP fields, CDP mouse controls, and screenshot-based clicks.
+- **Encrypted storage:** protect passwords, proxy credentials, and mailbox sessions with Fernet in SQLite; export account records as JSON, CSV, or JSONL.
+- **Operational diagnostics:** environment checks, execution records, failure captures, fingerprint consistency checks, and a local end-to-end test server.
 
-v1.1 added the October 2026 case patterns: in-page `browser_fetch`, IMAP
-aliases/catch-all, two-phase `pending` verification, solver proxy binding,
-error classes, and the case/anti-fraud/gateway references.
-
-v1.2 adds the provider layer: the `voidash` mailbox, `mailgw`, and the
-`providers.md` / `sms.md` catalogs (temp mail, SMS, proxies, engine benchmark),
-so an agent can choose a working provider before writing an adapter.
-
-v1.3 adds the method layer: `references/playbook.md` (first-try process),
-`references/preflight.md` (operator questions and readiness checks), and recon
-skeletons now detect the send-code control and put OTP before submit.
-
-v1.4 adds the input layer: trusted CDP mouse (`mouse_move`/`mouse_click`/
-`mouse_drag`/`press_hold`), React-friendly `fill_native`, OTP boxes via
-`fill_code`, `solve_image_captcha` (grid → vision → click), and
-`solve_audio_captcha` (reCAPTCHA audio → STT). It also fixes Camoufox detection
-when the installed package and cached browser version differ.
-
-v1.5 adds `click_by_vision`: screenshot an element or page, ask the VLM for a
-point, and click it with the trusted CDP mouse.
-
-v1.6 adds `invisible_playwright` as an optional first-class engine
-(`--engine invisible`), with persistent profiles and humanized input.
-`zendriver`/`nodriver` are not integrated engines.
-
-v1.7 encrypts mailbox sessions with each account, restores them in a later
-`verify` process, keeps message-ID baselines stable and renders protocol
-verification steps lazily so `{{otp}}` is available after its OTP step.
-
-The pack is self-contained under `~/.agents/skills/autoreg/`. Project state is
-kept in `<project>/.autoreg/`.
+The repository includes **8 adapter templates** and **14 reference guides**. Adapters describe individual services; the execution engine remains shared.
 
 ## Installation
 
+Requires **Python 3.13** and a browser installed for the selected engine. Docker is not required.
+
+### Install from Git
+
 ```bash
-git clone https://github.com/Ikhdev1/autoreg.git "$HOME/.agents/skills/autoreg"
+git clone https://github.com/Ikhdev1/autoreg-agent-skill.git "$HOME/.agents/skills/autoreg"
 python -m pip install -r "$HOME/.agents/skills/autoreg/requirements.txt"
 python -m patchright install chromium
 ```
 
-`SKILL.md` is the entry point for an agent that supports local skills. For
-other clients, add this directory to their skill search path or load
-`SKILL.md` directly. Start a new agent session after installing the skill.
+### Install from the release ZIP
 
-Optional engines are installed separately; to use `--engine invisible`, run
-`python -m pip install invisible-playwright`. Store provider keys in a local
-`.env` or environment variables, never in an adapter committed to Git.
+Download `autoreg-agent-skill-1.7.0.zip` from the [v1.7.0 release](https://github.com/Ikhdev1/autoreg-agent-skill/releases/tag/v1.7.0). The archive contains a top-level `autoreg/` directory. Extract it into the skill directory used by your agent, such as `~/.agents/skills/`.
 
-## Quick start
+Then install the Python dependencies and the selected browser as shown above. Release assets include `SHA256SUMS.txt` for archive verification.
+
+For Windows PowerShell:
+
+```powershell
+Expand-Archive .\autoreg-agent-skill-1.7.0.zip -DestinationPath "$env:USERPROFILE\.agents\skills"
+python -m pip install -r "$env:USERPROFILE\.agents\skills\autoreg\requirements.txt"
+python -m patchright install chromium
+```
+
+`SKILL.md` is the entry point for agents that support local skills. For other clients, configure their skill search path or load that file directly. Start a new agent session after installation.
+
+### Optional engines
+
+`invisible_playwright` is installed separately:
+
+```bash
+python -m pip install invisible-playwright
+```
+
+Select it explicitly with `--engine invisible`. Standard `auto` selection prefers Patchright; adapters with `stealth: true` prefer Camoufox when available. Camoufox requires its own browser download:
+
+```bash
+python -m camoufox fetch
+```
+
+## Quick Start
+
+Run these commands from the project directory that will hold the registration state:
 
 ```bash
 AUTOREG="$HOME/.agents/skills/autoreg/scripts/autoreg.py"
 
-python "$AUTOREG" --home . doctor
 python "$AUTOREG" --home . init
+python "$AUTOREG" --home . doctor
 python "$AUTOREG" --home . recon https://target.example/signup
-# edit .autoreg/adapters/target.yaml using the generated report
+```
+
+Review the generated report and adapter skeleton, then configure the required mail, proxy, CAPTCHA, or model providers. Keep the completed adapter in `.autoreg/adapters/`.
+
+```bash
 python "$AUTOREG" --home . run .autoreg/adapters/target.yaml --count 1 --headed
 python "$AUTOREG" --home . verify .autoreg/adapters/target.yaml --account 1
 ```
 
-Windows PowerShell:
+Windows PowerShell command prefix:
 
 ```powershell
 $AUTOREG = "$env:USERPROFILE\.agents\skills\autoreg\scripts\autoreg.py"
 python $AUTOREG --home . doctor
 ```
 
-`--json` can appear before or after the subcommand.
+`--home` accepts a project directory or its `.autoreg/` directory. `--json` provides machine-readable output and can appear before or after the subcommand. Progress messages go to stderr.
 
 ## Commands
 
 | Command | Purpose |
 |---|---|
-| `init` | Create `.autoreg/`, config, key, adapter templates |
-| `doctor` | Check engines, deps, store, permissions, config; `--probe` checks the direct IP |
-| `recon URL` | Capture a signup page, network, forms, protection; emit report + skeleton |
-| `run ADAPTER` | Execute 1..N accounts; `--dry-run`, `--headed`, `--engine`, `--proxy`, `--var`, `--email`, `--password`, `--no-verify`, `--stop-on-error` |
-| `verify ADAPTER` | Re-check one account or `--all`; updates `verified`/`invalid` |
-| `accounts list/show/export/delete` | Inspect or export the encrypted store |
-| `profile new/list/show/delete/fpcheck` | Manage identities |
-| `adapters validate PATH\|--all` | Schema check without network |
-| `mail test --provider X [--wait]` | Create a mailbox and optionally wait for a code |
-| `proxy check URL` | Exit IP, country, timezone, ASN |
-| `selftest` | Full mock-site regression (signup, OTP, captcha, verify, fpcheck) |
+| `init` | Create project state, default configuration, encryption key, and adapter templates. |
+| `doctor` | Check dependencies, engines, configuration, and storage. |
+| `recon URL` | Capture a registration page and generate a report and adapter skeleton. |
+| `run ADAPTER` | Execute an adapter with configurable account count, concurrency, engine, proxy, and runtime variables. |
+| `verify ADAPTER` | Recheck one account or a selected group using its stored context. |
+| `accounts list/show/export/delete` | Inspect, export, or remove stored account records. |
+| `profile new/list/show/delete/fpcheck` | Manage browser identities and check fingerprint consistency. |
+| `adapters validate PATH` | Validate a specific adapter; use `--all` to check available templates. |
+| `mail test --provider NAME` | Check mailbox access; add `--wait` to retrieve a code. |
+| `proxy check URL` | Inspect a proxy's exit IP and geographic information. |
+| `selftest` | Exercise registration, OTP, verification, and storage against the local mock service. |
 
-## Layout
+Run a command with `--help` for its full option list.
+
+## Project State and Deferred Verification
+
+The skill code and project data are separate. Runtime state is stored in `<project>/.autoreg/`, including the database, encryption key, profiles, execution records, and captures.
+
+Setting `mail.defer: true` skips immediate verification and stores the account as `pending`. A later `verify` process restores the original mailbox configuration, token, metadata, and message-ID baseline from encrypted storage. It does not create a replacement inbox.
+
+Restored sessions and pending accounts do not automatically advance the mailbox baseline. An explicit `mail_arm` step is available when the workflow needs a new baseline before requesting another message. Mailbox persistence does not extend the provider's retention period or token lifetime.
+
+See [Two-phase signup and confirmation](references/two-phase.md) and [Mail providers](references/mail.md).
+
+## Repository Layout
 
 ```text
 autoreg/
-├── SKILL.md                     agent-facing workflow
-├── references/                  adapters, recon, fingerprints, mail, captcha,
-│                                providers, sms, cases, anti-fraud, two-phase,
-│                                gateway, troubleshooting
-├── assets/adapters/             mock, generic email/password/OTP, protocol OTP,
-│                                Supabase, JSON-RPC, Gmail alias, catch-all two-phase
-├── scripts/
-│   ├── autoreg.py               CLI launcher
-│   ├── mock_site.py             local signup target
-│   └── autoreg_pkg/
-│       ├── cli.py               argparse commands
-│       ├── runner.py            per-account orchestration, retries, proxy/mail/profile
-│       ├── flow.py              browser step engine + verify
-│       ├── protocol.py          curl_cffi step engine + verify
-│       ├── browser.py           Camoufox / Patchright / Playwright persistent sessions
-│       ├── identity.py          deterministic profiles, Camoufox fingerprints, fpcheck
-│       ├── mouse.py             trusted CDP mouse helpers
-│       ├── vision.py            OpenAI-compatible vision/STT clients
-│       ├── mail.py              providers + code extraction
-│       ├── captcha.py           2captcha / YesCaptcha / local / manual + injection
-│       ├── recon.py             HAR, forms, protection detection, skeleton
-│       ├── store.py             SQLite + Fernet, ledger
-│       ├── verify.py            stored-account verification
-│       └── selftest.py          end-to-end harness
-└── tests/                       unit + e2e
+  SKILL.md                  Agent-facing workflow and usage instructions
+  assets/adapters/          Eight reusable adapter templates
+  references/               Adapter, mail, proxy, CAPTCHA, and workflow guides
+  scripts/autoreg.py        CLI entry point
+  scripts/autoreg_pkg/      Execution engine and provider integrations
+  scripts/mock_site.py      Local test service
+  tests/                    Unit and browser/HTTP integration tests
 ```
 
-## Design decisions
+## Verification
 
-- **One account = one profile + one mailbox + one proxy lease.** Reuse links
-  accounts and destroys the value of the identity.
-- **Recon before code.** Selectors and endpoints come from the live page, not
-  from guesses. The skeleton is a draft with TODOs.
-- **In-page fetch.** `browser_fetch` runs `fetch()` in the logged-in page for
-  JSON-RPC/APIs that return Cloudflare 403 to direct HTTP.
-- **One egress IP per chain.** A solver token is bound to the resolver IP; the
-  runner passes the account proxy into 2captcha/YesCaptcha/local tasks.
-- **IMAP aliases and catch-all.** `imap` can generate Gmail `+tags` or unique
-  catch-all addresses and search by recipient (`TO`, `Delivered-To`, ...).
-- **Two-phase.** `mail.defer: true` stores `pending`; `verify` later reads the
-  existing mailbox and runs the confirm steps.
-- **Error classes.** The ledger records `mail/proxy/captcha/ratelimit/blocked/
-  target/config`; permanent classes stop instead of burning retries.
-- **Browser is the default; protocol is an optimization.** Protocol mode is
-  fast but cannot execute JS or pass a managed challenge.
-- **Camoufox for fingerprint-sensitive targets; Patchright for normal Chromium;
-  Playwright for init-script overrides.** Patchright ignores
-  `add_init_script` by design (verified), so its profile describes native
-  hardware values instead of lying.
-- **New mail is identified by message ID**, never by timestamp comparison.
-  Mail 5xx is retried; 4xx fails fast.
-- **Passwords, proxy credentials and mailbox sessions are Fernet-encrypted**
-  in SQLite. Public account output and exports exclude mailbox credentials.
-- **Progress goes to stderr**, so `--json` stdout stays machine-readable.
-- **Retries reuse the profile, mailbox and proxy**; a late failure often means
-  the account already exists.
-
-## Tests
+The verified test baseline is **44 unit tests and 10 end-to-end tests**. End-to-end coverage uses the bundled local mock service and includes browser registration, protocol flows, deferred verification with a token-protected inbox, recon, input actions, and vision integration fixtures.
 
 ```bash
 cd ~/.agents/skills/autoreg
@@ -183,41 +143,24 @@ python -m unittest discover -s tests -p "test_core.py" -v
 python -m unittest discover -s tests -p "test_e2e.py" -v
 ```
 
-The e2e test starts `mock_site.py`, runs a real browser signup, verifies the
-account, checks the fingerprint, runs recon, exercises `browser_fetch`, tests
-deferred `pending` verification, runs protocol mode, and exercises
-`browser_fetch`, `fill_native`, `solve_image_captcha`, `mouse_click` and
-`click_by_vision` against the mock grid, plus deferred confirmation with a
-token-protected inbox in both modes. Verified release baseline:
-**44 unit tests, 10 e2e tests**.
-
-Full smoke on all three engines:
+Run a complete local CLI smoke check:
 
 ```bash
 python scripts/autoreg.py --home /tmp/autoreg-selftest selftest --engine patchright
-python scripts/autoreg.py --home /tmp/autoreg-selftest-cf selftest --engine camoufox
-python scripts/autoreg.py --home /tmp/autoreg-selftest-pw selftest --engine playwright
 ```
 
-## Requirements
+The included tests do not establish compatibility with every third-party service. New targets require an adapter, appropriate provider access, and an observed registration and verification run. SMS integration is currently hook-based; no SMS provider is bundled. Vision and speech-to-text models, provider subscriptions, and browser binaries are not included in the ZIP.
 
-Python 3.13 and packages from `requirements.txt`; install a browser for the
-selected engine. Optional engines and external provider/model credentials are
-not bundled. The pack does not require Docker.
+## Credential and Data Handling
 
-## Security
+- Store provider credentials in environment variables or a local `.env` file, not in committed adapters.
+- The Fernet key in `.autoreg/key` decrypts the account database. Keep it with a protected backup; do not commit either file.
+- Account exports exclude mailbox credentials. Password export requires the explicit `accounts export --secrets` option.
+- Automatic OTP and extraction logs report presence rather than raw codes, email subjects, or extracted credential values. Explicit `mail test --wait` output returns the requested code.
+- Browser profiles, HAR files, HTML captures, and screenshots are local runtime data. Database encryption does not encrypt those files.
+- The repository excludes local runtime state, credentials, and caches. Shell launchers retain LF line endings across Windows checkouts.
+- Adapters can execute Python hooks; review external adapters before running them.
 
-- `.autoreg/key` decrypts `accounts.db`. Back it up with the DB; never commit
-  either.
-- Export with secrets only on explicit request (`accounts export --secrets`).
-- Automatic OTP/extract logs report presence, not the code, email subject or
-  extracted credential value. Explicit `mail test --wait` output still returns
-  the requested code.
-- Recon HAR/HTML/screenshots and failure captures contain raw page content;
-  keep `.autoreg/` local. Encryption of the account database does not encrypt
-  browser profiles or capture files.
-- `.gitattributes` keeps shell launchers LF on Windows, even with
-  `core.autocrlf=true`.
-- Adapters can execute Python hooks. Review third-party adapters before running.
-- Use only on services where account creation is authorized; respect terms,
-  rate limits and local law.
+## Maintainer
+
+Created and maintained by **[@ikhdev](https://t.me/ikhdev)**.
