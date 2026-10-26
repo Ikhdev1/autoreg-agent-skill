@@ -103,6 +103,36 @@ class IdentityTest(unittest.TestCase):
         self.assertEqual(compare_fingerprint(profile, actual), [])
         actual["timezone"] = "Mars/Olympus"
         self.assertTrue(compare_fingerprint(profile, actual))
+    def test_camoufox_dict_fingerprint_is_cached(self):
+        from unittest.mock import patch
+        from autoreg_pkg.identity import camoufox_fingerprint
+        profile = make_profile("camoufox-dict", os_name="windows", engine="camoufox")
+        generated = {
+            "screen": {"width": 1600, "height": 1200,
+                       "availWidth": 1600, "availHeight": 1160},
+            "navigator": {"platform": profile["platform"],
+                          "language": profile["locale"],
+                          "hardwareConcurrency": profile["hardware"]["concurrency"]},
+        }
+        with patch("camoufox.fingerprints.generate_fingerprint",
+                   return_value=generated) as generate:
+            result = camoufox_fingerprint(profile)
+            cached_result = camoufox_fingerprint(profile)
+        self.assertEqual(result, generated)
+        self.assertEqual(cached_result, generated)
+        self.assertIs(cached_result, profile["camoufox_fp"])
+        self.assertEqual(generate.call_count, 1)
+        actual = {
+            "webdriver": False,
+            "platform": profile["platform"],
+            "language": profile["locale"],
+            "timezone": profile["timezone"],
+            "hardwareConcurrency": profile["hardware"]["concurrency"],
+            "screen": generated["screen"],
+            "devicePixelRatio": profile["screen"]["pixel_ratio"],
+        }
+        self.assertEqual(compare_fingerprint(profile, actual,
+                                             strict_hardware=False), [])
 
 
 class StoreTest(unittest.TestCase):

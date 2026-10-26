@@ -267,30 +267,49 @@ def init_script(profile: dict[str, Any]) -> str:
 })();""" % json.dumps(payload, ensure_ascii=True)
 
 
-def camoufox_fingerprint(profile: dict[str, Any]) -> Any:
-    """Generate a full Camoufox fingerprint for this identity.
+def camoufox_fingerprint(profile: dict[str, Any]) -> dict[str, Any]:
+    """Generate and persist the exact fingerprint used by Camoufox.
 
-    Returns a ``browserforge.fingerprints.Fingerprint`` object, which Camoufox
-    accepts directly via ``Camoufox(fingerprint=...)``.  Also caches a dict
-    view at ``profile['camoufox_fp']`` so ``compare_fingerprint`` can read the
-    screen values Camoufox actually chose (it does not always honour the
-    requested dimensions exactly).
+    Camoufox 0.5.x exposes `Screen` again, while older builds may only accept
+    the `window` constraint.  Prefer screen bounds so fpcheck has the same
+    screen contract as the browser; cache the returned dict so later launches
+    reuse the identical identity instead of drawing a new random screen.
     """
+    cached = profile.get("camoufox_fp")
+    if isinstance(cached, dict) and cached:
+        return cached
     try:
-        from camoufox.fingerprints import generate_fingerprint
+        from camoufox.fingerprints import Screen, generate_fingerprint
+    except ImportError:
+        try:
+            from camoufox.fingerprints import generate_fingerprint
+        except Exception as exc:  # pragma: no cover - optional dependency
+            raise ConfigError("camoufox is not installed; use --engine patchright") from exc
+        Screen = None
     except Exception as exc:  # pragma: no cover - optional dependency
         raise ConfigError("camoufox is not installed; use --engine patchright") from exc
     screen = profile["screen"]
-    fp = generate_fingerprint(
-        window=(screen["width"], screen["height"]),
-        os=profile["os"],
-    )
-    try:
-        from dataclasses import asdict
-        profile["camoufox_fp"] = asdict(fp)
-    except Exception:
-        pass
-    return fp
+    if Screen is not None:
+        fingerprint = generate_fingerprint(
+            screen=Screen(min_width=screen["width"], max_width=screen["width"],
+                          min_height=screen["height"], max_height=screen["height"]),
+            os=profile["os"],
+        )
+    else:
+        fingerprint = generate_fingerprint(
+            window=(screen["width"], screen["height"]),
+            os=profile["os"],
+        )
+    if isinstance(fingerprint, dict):
+        cached = json.loads(json.dumps(fingerprint, ensure_ascii=False, default=str))
+    else:
+        try:
+            from dataclasses import asdict
+            cached = asdict(fingerprint)
+        except TypeError as exc:
+            raise ConfigError("Camoufox returned an unsupported fingerprint type") from exc
+    profile["camoufox_fp"] = cached
+    return cached
 
 
 def validate_profile(profile: dict[str, Any]) -> list[str]:
