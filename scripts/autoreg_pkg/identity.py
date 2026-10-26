@@ -267,24 +267,29 @@ def init_script(profile: dict[str, Any]) -> str:
 })();""" % json.dumps(payload, ensure_ascii=True)
 
 
-def camoufox_fingerprint(profile: dict[str, Any]) -> dict[str, Any]:
-    """Generate and cache a full Camoufox fingerprint for this identity."""
-    cached = profile.get("camoufox_fp")
-    if cached:
-        return cached
+def camoufox_fingerprint(profile: dict[str, Any]) -> Any:
+    """Generate a full Camoufox fingerprint for this identity.
+
+    Returns a ``browserforge.fingerprints.Fingerprint`` object, which Camoufox
+    accepts directly via ``Camoufox(fingerprint=...)``.  Also caches a dict
+    view at ``profile['camoufox_fp']`` so ``compare_fingerprint`` can read the
+    screen values Camoufox actually chose (it does not always honour the
+    requested dimensions exactly).
+    """
     try:
-        from camoufox.fingerprints import Screen, generate_fingerprint
+        from camoufox.fingerprints import generate_fingerprint
     except Exception as exc:  # pragma: no cover - optional dependency
         raise ConfigError("camoufox is not installed; use --engine patchright") from exc
     screen = profile["screen"]
     fp = generate_fingerprint(
-        screen=Screen(min_width=screen["width"], max_width=screen["width"],
-                      min_height=screen["height"], max_height=screen["height"]),
+        window=(screen["width"], screen["height"]),
         os=profile["os"],
     )
-    # JSON round-trip both validates serialisability and drops odd types.
-    fp = json.loads(json.dumps(fp, default=str))
-    profile["camoufox_fp"] = fp
+    try:
+        from dataclasses import asdict
+        profile["camoufox_fp"] = asdict(fp)
+    except Exception:
+        pass
     return fp
 
 
