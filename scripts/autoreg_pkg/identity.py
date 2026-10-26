@@ -267,17 +267,27 @@ def init_script(profile: dict[str, Any]) -> str:
 })();""" % json.dumps(payload, ensure_ascii=True)
 
 
-def camoufox_fingerprint(profile: dict[str, Any]) -> dict[str, Any]:
+def camoufox_fingerprint(profile: dict[str, Any]) -> Any:
     """Generate and persist the exact fingerprint used by Camoufox.
 
     Camoufox 0.5.x exposes `Screen` again, while older builds may only accept
     the `window` constraint.  Prefer screen bounds so fpcheck has the same
     screen contract as the browser; cache the returned dict so later launches
     reuse the identical identity instead of drawing a new random screen.
+
+    Two caches are kept:
+    - ``profile['camoufox_fp']`` is a JSON-safe dict used by
+      ``compare_fingerprint`` and persisted across CLI runs.
+    - ``profile['camoufox_fp_obj']`` holds the live ``Fingerprint`` (or dict,
+      depending on the Camoufox build) so a second browser launch inside the
+      same process reuses the same identity instead of regenerating one.
+      This key is filtered out before serialisation because ``Fingerprint``
+      dataclasses are not JSON-serialisable and Camoufox's ``from_browserforge``
+      expects the original object, not a dict.
     """
-    cached = profile.get("camoufox_fp")
-    if isinstance(cached, dict) and cached:
-        return cached
+    cached_obj = profile.get("camoufox_fp_obj")
+    if cached_obj is not None:
+        return cached_obj
     try:
         from camoufox.fingerprints import Screen, generate_fingerprint
     except ImportError:
@@ -301,7 +311,7 @@ def camoufox_fingerprint(profile: dict[str, Any]) -> dict[str, Any]:
             os=profile["os"],
         )
     if isinstance(fingerprint, dict):
-        cached = json.loads(json.dumps(fingerprint, ensure_ascii=False, default=str))
+        cached = fingerprint
     else:
         try:
             from dataclasses import asdict
@@ -309,7 +319,8 @@ def camoufox_fingerprint(profile: dict[str, Any]) -> dict[str, Any]:
         except TypeError as exc:
             raise ConfigError("Camoufox returned an unsupported fingerprint type") from exc
     profile["camoufox_fp"] = cached
-    return cached
+    profile["camoufox_fp_obj"] = fingerprint
+    return fingerprint
 
 
 def validate_profile(profile: dict[str, Any]) -> list[str]:
@@ -355,7 +366,8 @@ def chromium_args(profile: dict[str, Any], *, proxy: bool) -> list[str]:
 
 def public_profile(profile: dict[str, Any]) -> dict[str, Any]:
     """Profile without the bulky Camoufox blob."""
-    out = {k: v for k, v in profile.items() if k != "camoufox_fp"}
+    out = {k: v for k, v in profile.items()
+           if k not in ("camoufox_fp", "camoufox_fp_obj")}
     out["has_camoufox_fp"] = bool(profile.get("camoufox_fp"))
     return out
 
