@@ -103,36 +103,97 @@ class IdentityTest(unittest.TestCase):
         self.assertEqual(compare_fingerprint(profile, actual), [])
         actual["timezone"] = "Mars/Olympus"
         self.assertTrue(compare_fingerprint(profile, actual))
-    def test_camoufox_dict_fingerprint_is_cached(self):
-        from unittest.mock import patch
+
+    def test_camoufox_dict_identity_survives_save_load(self):
+        from types import ModuleType
+        from unittest.mock import Mock, patch
         from autoreg_pkg.identity import camoufox_fingerprint
-        profile = make_profile("camoufox-dict", os_name="windows", engine="camoufox")
+        from autoreg_pkg.runner import load_profile, save_profile
+
+        backend = ModuleType("camoufox.fingerprints")
         generated = {
             "screen": {"width": 1600, "height": 1200,
                        "availWidth": 1600, "availHeight": 1160},
-            "navigator": {"platform": profile["platform"],
-                          "language": profile["locale"],
-                          "hardwareConcurrency": profile["hardware"]["concurrency"]},
+            "navigator": {"platform": "Win32", "userAgent": "Firefox/156.0"},
+            "window": {"screenX": 0, "screenY": 0},
         }
-        with patch("camoufox.fingerprints.generate_fingerprint",
-                   return_value=generated) as generate:
-            result = camoufox_fingerprint(profile)
-            cached_result = camoufox_fingerprint(profile)
-        self.assertEqual(result, generated)
-        self.assertEqual(cached_result, generated)
-        self.assertIs(cached_result, profile["camoufox_fp"])
-        self.assertEqual(generate.call_count, 1)
-        actual = {
-            "webdriver": False,
-            "platform": profile["platform"],
-            "language": profile["locale"],
-            "timezone": profile["timezone"],
-            "hardwareConcurrency": profile["hardware"]["concurrency"],
-            "screen": generated["screen"],
-            "devicePixelRatio": profile["screen"]["pixel_ratio"],
-        }
-        self.assertEqual(compare_fingerprint(profile, actual,
-                                             strict_hardware=False), [])
+        backend.generate_fingerprint = Mock(return_value=generated)
+        profile = make_profile("camoufox-dict", os_name="windows", engine="camoufox")
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+                sys.modules, {"camoufox.fingerprints": backend}):
+            settings = Settings(home=Path(tmp))
+            camoufox_fingerprint(profile)
+            save_profile(settings, profile)
+            loaded = load_profile(settings, profile["id"])
+            backend.generate_fingerprint.side_effect = AssertionError("Identity regenerated")
+            restored = camoufox_fingerprint(loaded)
+            self.assertEqual(restored, generated)
+            self.assertEqual(camoufox_fingerprint(loaded), generated)
+
+    def test_camoufox_browserforge_identity_survives_save_load(self):
+        from dataclasses import asdict, make_dataclass
+        from types import ModuleType
+        from unittest.mock import Mock, patch
+        try:
+            from browserforge.fingerprints import (
+                Fingerprint, NavigatorFingerprint, ScreenFingerprint, VideoCard,
+            )
+        except ImportError:
+            self.skipTest("BrowserForge is only needed for the legacy Camoufox backend")
+        from autoreg_pkg.identity import camoufox_fingerprint, public_profile
+        from autoreg_pkg.runner import load_profile, save_profile
+
+        extended_screen = make_dataclass(
+            "ExtendedScreen", [("screenY", int, 12)], bases=(ScreenFingerprint,))
+        screen = extended_screen(
+            availHeight=1040, availWidth=1920, availTop=0, availLeft=0,
+            colorDepth=24, height=1080, pixelDepth=24, width=1920,
+            devicePixelRatio=1.0, pageXOffset=0, pageYOffset=0,
+            innerHeight=900, outerHeight=980, outerWidth=1600, innerWidth=1600,
+            screenX=160, clientWidth=1600, clientHeight=900, hasHDR=False,
+        )
+        navigator = NavigatorFingerprint(
+            userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:135.0) Gecko/20100101 Firefox/135.0",
+            userAgentData={}, doNotTrack=None, appCodeName="Mozilla",
+            appName="Netscape", appVersion="5.0 (Windows)",
+            oscpu="Windows NT 10.0; Win64; x64", webdriver=False,
+            language="en-US", languages=["en-US", "en"], platform="Win32",
+            deviceMemory=None, hardwareConcurrency=8, product="Gecko",
+            productSub="20100101", vendor="", vendorSub="", maxTouchPoints=0,
+            extraProperties={},
+        )
+        for video_card in (VideoCard(renderer="Test GPU", vendor="Test vendor"), None):
+            with self.subTest(video_card=video_card):
+                generated = Fingerprint(
+                    screen=screen, navigator=navigator, headers={"accept": "text/html"},
+                    videoCodecs={}, audioCodecs={}, pluginsData={}, battery=None,
+                    videoCard=video_card, multimediaDevices=[], fonts=["Arial"],
+                    mockWebRTC=False, slim=False,
+                )
+                backend = ModuleType("camoufox.fingerprints")
+                backend.Fingerprint = Fingerprint
+                backend.ExtendedScreen = extended_screen
+                backend.generate_fingerprint = Mock(return_value=generated)
+                profile = make_profile("camoufox-legacy", os_name="windows", engine="camoufox")
+                with tempfile.TemporaryDirectory() as tmp, patch.dict(
+                        sys.modules, {"camoufox.fingerprints": backend}):
+                    settings = Settings(home=Path(tmp))
+                    camoufox_fingerprint(profile)
+                    save_profile(settings, profile)
+                    loaded = load_profile(settings, profile["id"])
+                    self.assertNotIn("camoufox_fp_obj", loaded)
+                    json.dumps(public_profile(profile))
+                    backend.generate_fingerprint.side_effect = AssertionError("Identity regenerated")
+                    restored = camoufox_fingerprint(loaded)
+                    self.assertIsInstance(restored, Fingerprint)
+                    self.assertIsInstance(restored.screen, extended_screen)
+                    self.assertIsInstance(restored.navigator, NavigatorFingerprint)
+                    if video_card is not None:
+                        self.assertIsInstance(restored.videoCard, VideoCard)
+                    self.assertEqual(asdict(restored), asdict(generated))
+                    save_profile(settings, loaded)
+                    self.assertEqual(load_profile(settings, profile["id"])["camoufox_fp"],
+                                     asdict(generated))
 
 
 class StoreTest(unittest.TestCase):

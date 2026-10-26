@@ -60,8 +60,13 @@ verify on the target.
 
 ### Camoufox
 
-A generated fingerprint is stored in the profile as `camoufox_fp` and passed to
-the launcher. It pins:
+The generated fingerprint is persisted as a JSON-safe `camoufox_fp`. On reload,
+the launcher reuses that identity instead of generating another one. fpgen-backed
+Camoufox accepts the saved dict directly; BrowserForge-backed builds need the
+`Fingerprint` dataclass reconstructed with its nested screen, navigator and
+optional video-card dataclasses. The live `camoufox_fp_obj` cache is process-local
+and excluded from profile files and public CLI output. Backend capabilities,
+not the package version string, determine the representation. It pins:
 
 - navigator UA/platform/languages/hardware concurrency/device memory;
 - screen and window dimensions;
@@ -75,6 +80,14 @@ proxy is in use. `humanize` moves the cursor like a person.
 
 Generate it once and keep the profile. Regenerating a fingerprint for the same
 account breaks continuity.
+`run`, browser `verify`, and `profile fpcheck` save the generated identity,
+including when verification or the fingerprint check fails after generation.
+This also pins profiles created with `profile new` or older profiles with no
+saved fingerprint on their first Camoufox launch.
+
+Keep the same Camoufox backend for an existing profile. A saved fingerprint that
+cannot be reconstructed by the installed BrowserForge schema raises a
+configuration error; it is not silently replaced with a new identity.
 
 ### Patchright
 

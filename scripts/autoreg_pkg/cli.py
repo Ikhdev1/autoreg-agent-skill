@@ -218,11 +218,15 @@ def cmd_profile(args: argparse.Namespace) -> int:
         return 0
     if sub == "fpcheck":
         profile = load_profile(settings, args.profile_id)
-        actual, mismatches, engine = fpcheck(
-            settings, profile, engine=args.engine or "auto",
-            headed=args.headed,
-            proxy=parse_proxy(args.proxy) if args.proxy else None,
-        )
+        try:
+            actual, mismatches, engine = fpcheck(
+                settings, profile, engine=args.engine or "auto",
+                headed=args.headed,
+                proxy=parse_proxy(args.proxy) if args.proxy else None,
+            )
+        finally:
+            if profile.get("camoufox_fp") is not None:
+                save_profile(settings, profile)
         result = {"profile": profile["id"], "engine": engine,
                   "actual": actual, "mismatches": mismatches}
         _emit(result, args.json)
