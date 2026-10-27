@@ -6,7 +6,7 @@
 
 Autoreg turns a service's registration flow into a reusable YAML adapter. It combines browser and HTTP execution, email OTP retrieval, persistent account profiles, proxy routing, verification, and encrypted credential storage in one project-oriented workflow.
 
-**Initial release:** 1.0.0 · **Maintainer:** [@ikhdev](https://t.me/ikhdev)
+**Release:** 1.0.1 · **Maintainer:** [@ikhdev](https://t.me/ikhdev)
 
 [Download the latest release](https://github.com/Ikhdev1/autoreg-agent-skill/releases/latest) · [Agent instructions](SKILL.md) · [Adapter reference](references/adapters.md)
 
@@ -38,14 +38,14 @@ python -m patchright install chromium
 
 ### Install from the release ZIP
 
-Download `autoreg-agent-skill-1.0.0.zip` from the [initial release](https://github.com/Ikhdev1/autoreg-agent-skill/releases/tag/v1.0.0). The archive contains a top-level `autoreg/` directory. Extract it into the skill directory used by your agent, such as `~/.agents/skills/`.
+Download `autoreg-agent-skill-1.0.1.zip` from the [v1.0.1 release](https://github.com/Ikhdev1/autoreg-agent-skill/releases/tag/v1.0.1). The archive contains a top-level `autoreg/` directory. Extract it into the skill directory used by your agent, such as `~/.agents/skills/`.
 
 Then install the Python dependencies and the selected browser as shown above. Release assets include `SHA256SUMS.txt` for archive verification.
 
 For Windows PowerShell:
 
 ```powershell
-Expand-Archive .\autoreg-agent-skill-1.0.0.zip -DestinationPath "$env:USERPROFILE\.agents\skills"
+Expand-Archive .\autoreg-agent-skill-1.0.1.zip -DestinationPath "$env:USERPROFILE\.agents\skills"
 python -m pip install -r "$env:USERPROFILE\.agents\skills\autoreg\requirements.txt"
 python -m patchright install chromium
 ```
