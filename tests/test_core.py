@@ -104,6 +104,26 @@ class IdentityTest(unittest.TestCase):
         actual["timezone"] = "Mars/Olympus"
         self.assertTrue(compare_fingerprint(profile, actual))
 
+    def test_camoufox_compares_effective_screen_without_weakening_checks(self):
+        profile = make_profile("normalized-screen", os_name="windows", engine="camoufox")
+        profile["camoufox_fp"] = {"screen": {
+            "width": 1366, "height": 768, "availWidth": 1366, "availHeight": 768,
+        }}
+        profile["camoufox_screen"] = {
+            "width": 1366, "height": 768, "availWidth": 1366, "availHeight": 728,
+        }
+        actual = {
+            "webdriver": False, "platform": profile["platform"],
+            "language": profile["locale"], "timezone": profile["timezone"],
+            "screen": dict(profile["camoufox_screen"]),
+        }
+        self.assertEqual(compare_fingerprint(profile, actual, strict_hardware=False), [])
+        for key in ("width", "height", "availWidth", "availHeight"):
+            with self.subTest(key=key):
+                changed = {**actual, "screen": {**actual["screen"], key: actual["screen"][key] - 1}}
+                self.assertEqual(compare_fingerprint(profile, changed, strict_hardware=False),
+                                 [f"screen.{key} {changed['screen'][key]} != {actual['screen'][key]}"])
+
     def test_camoufox_dict_identity_survives_save_load(self):
         from types import ModuleType
         from unittest.mock import Mock, patch

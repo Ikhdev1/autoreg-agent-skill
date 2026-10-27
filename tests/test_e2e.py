@@ -70,6 +70,42 @@ class EndToEndTest(unittest.TestCase):
         for key in ("ua", "platform", "language", "timezone", "screen", "webgl"):
             self.assertEqual(snapshots[0][key], snapshots[1][key], key)
 
+    @unittest.skipUnless(ENGINE == "camoufox", "Camoufox-specific screen normalization")
+    def test_0_normalized_screen_survives_process_restart(self) -> None:
+        from camoufox import fingerprints
+        if not hasattr(fingerprints, "from_fpgen"):
+            self.skipTest("This taskbar normalization is specific to fpgen-backed Camoufox")
+        from autoreg_pkg.config import Settings
+        from autoreg_pkg.identity import camoufox_fingerprint, make_profile
+        from autoreg_pkg.runner import load_profile, save_profile
+
+        settings = Settings(home=self.tmp / "normalized-screen" / ".autoreg")
+        profile = make_profile("normalized-screen", os_name="windows", engine="camoufox")
+        profile["screen"].update(width=1366, height=768, avail_width=1366, avail_height=768)
+        profile["viewport"] = {"width": 1280, "height": 600}
+        generated = camoufox_fingerprint(profile)
+        generated["screen"].update(width=1366, height=768, availWidth=1366, availHeight=768)
+        generated["window"].update(outerWidth=1280, innerWidth=1280,
+                                   outerHeight=680, innerHeight=600, screenX=0, screenY=0)
+        path = save_profile(settings, profile)
+        expected = json.loads(path.read_text(encoding="utf-8"))["camoufox_fp"]
+        snapshots = []
+        for _ in range(2):
+            proc = run_cli(settings.home, [
+                "profile", "fpcheck", profile["id"], "--engine", "camoufox", "--json",
+            ])
+            self.assertEqual(proc.returncode, 0, proc.stderr + proc.stdout)
+            result = parse_json(proc)
+            self.assertEqual(result["mismatches"], [])
+            self.assertEqual(result["actual"]["screen"]["availHeight"], 728)
+            loaded = load_profile(settings, profile["id"])
+            self.assertEqual(loaded["camoufox_fp"], expected)
+            self.assertEqual(loaded["camoufox_screen"], {
+                "width": 1366, "height": 768, "availWidth": 1366, "availHeight": 728,
+            })
+            snapshots.append(result["actual"]["screen"])
+        self.assertEqual(snapshots[0], snapshots[1])
+
     def test_1_browser_signup_verify_fpcheck(self) -> None:
         proc = run_cli(self.home, [
             "run", "mock.yaml", "--count", "1", "--engine", ENGINE,

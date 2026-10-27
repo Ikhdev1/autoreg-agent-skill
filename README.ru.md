@@ -6,7 +6,7 @@
 
 Autoreg превращает процесс регистрации на сервисе в многоразовый YAML-адаптер. Он объединяет работу через браузер и HTTP, получение OTP из почты, постоянные профили аккаунтов, маршрутизацию через прокси, проверку и шифрованное хранение учётных данных в рамках одного проекта.
 
-**Релиз:** 1.0.1 · **Автор и сопровождение:** [@ikhdev](https://t.me/ikhdev)
+**Релиз:** 1.0.2 · **Автор и сопровождение:** [@ikhdev](https://t.me/ikhdev)
 
 [Скачать последний релиз](https://github.com/Ikhdev1/autoreg-agent-skill/releases/latest) · [Инструкции для агента](SKILL.md) · [Справочник адаптеров](references/adapters.md)
 
@@ -38,14 +38,14 @@ python -m patchright install chromium
 
 ### Установка из ZIP релиза
 
-Скачайте `autoreg-agent-skill-1.0.1.zip` из [релиза v1.0.1](https://github.com/Ikhdev1/autoreg-agent-skill/releases/tag/v1.0.1). В архиве находится корневая папка `autoreg/`. Распакуйте её в каталог скиллов вашего агента, например `~/.agents/skills/`.
+Скачайте `autoreg-agent-skill-1.0.2.zip` из [релиза v1.0.2](https://github.com/Ikhdev1/autoreg-agent-skill/releases/tag/v1.0.2). В архиве находится корневая папка `autoreg/`. Распакуйте её в каталог скиллов вашего агента, например `~/.agents/skills/`.
 
 Затем установите Python-зависимости и выбранный браузер командами выше. В релизе также находится `SHA256SUMS.txt` для проверки контрольной суммы архива.
 
 Для Windows PowerShell:
 
 ```powershell
-Expand-Archive .\autoreg-agent-skill-1.0.1.zip -DestinationPath "$env:USERPROFILE\.agents\skills"
+Expand-Archive .\autoreg-agent-skill-1.0.2.zip -DestinationPath "$env:USERPROFILE\.agents\skills"
 python -m pip install -r "$env:USERPROFILE\.agents\skills\autoreg\requirements.txt"
 python -m patchright install chromium
 ```

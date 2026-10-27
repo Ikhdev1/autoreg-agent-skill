@@ -141,6 +141,7 @@ class BrowserSession:
 
     def _start_camoufox(self) -> None:
         from camoufox.sync_api import Camoufox
+        config: dict[str, Any] = {}
         opts: dict[str, Any] = {
             "headless": not self.headed,
             "persistent_context": True,
@@ -152,6 +153,7 @@ class BrowserSession:
             "block_webrtc": bool(self.proxy),
             "enable_cache": True,
             "i_know_what_im_doing": True,
+            "config": config,
             "fingerprint": camoufox_fingerprint(self.profile),
             "window": (self.profile["viewport"]["width"], self.profile["viewport"]["height"]),
         }
@@ -159,6 +161,12 @@ class BrowserSession:
             opts["proxy"] = self.proxy.playwright()
         self._cf_cm = Camoufox(**opts)
         self.context = self._cf_cm.__enter__()
+        # The launcher normalizes generated geometry before passing it to Gecko.
+        # Keep that expectation separate from both the raw identity and page readings.
+        self.profile["camoufox_screen"] = {
+            key: config[f"screen.{key}"]
+            for key in ("width", "height", "availWidth", "availHeight")
+        }
 
     def _start_invisible(self) -> None:
         from invisible_playwright import InvisiblePlaywright

@@ -428,9 +428,9 @@ def compare_fingerprint(profile: dict[str, Any], actual: dict[str, Any],
             bad.append("deviceMemory mismatch")
     screen = actual.get("screen") or {}
     if strict_screen:
-        # Camoufox may adjust the exact screen it renders; its generated
-        # fingerprint is the truth for that engine.
-        fp_screen = (profile.get("camoufox_fp") or {}).get("screen") \
+        # Compare to the normalized launch configuration, not the pre-launch draw.
+        fp_screen = (profile.get("camoufox_screen") or
+                     (profile.get("camoufox_fp") or {}).get("screen")) \
             if not strict_hardware else None
         for key in ("width", "height", "availWidth", "availHeight"):
             if fp_screen and key in fp_screen:

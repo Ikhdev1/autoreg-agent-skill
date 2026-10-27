@@ -85,6 +85,14 @@ including when verification or the fingerprint check fails after generation.
 This also pins profiles created with `profile new` or older profiles with no
 saved fingerprint on their first Camoufox launch.
 
+Camoufox may normalize geometry after generating the raw fingerprint (for
+example, subtracting a Windows taskbar from `screen.availHeight`). The launcher
+retains the final `width`, `height`, `availWidth`, and `availHeight` configuration
+as `camoufox_screen`, separately from the unchanged raw identity. `fpcheck`
+compares all four live values strictly against that launch configuration; it
+never uses page readings to establish its own expectations. Older profiles
+acquire this field on their next Camoufox launch.
+
 Keep the same Camoufox backend for an existing profile. A saved fingerprint that
 cannot be reconstructed by the installed BrowserForge schema raises a
 configuration error; it is not silently replaced with a new identity.
