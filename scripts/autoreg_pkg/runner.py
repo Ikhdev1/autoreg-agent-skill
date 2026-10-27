@@ -75,7 +75,8 @@ def load_profile(settings: Settings, profile_id_or_path: str) -> dict[str, Any]:
 def save_profile(settings: Settings, profile: dict[str, Any]) -> Path:
     settings.paths.ensure()
     path = settings.paths.profiles / (profile["id"] + ".json")
-    write_json(path, profile)
+    serialisable = {k: v for k, v in profile.items() if k != "camoufox_fp_obj"}
+    write_json(path, serialisable)
     return path
 
 

@@ -12,7 +12,7 @@ from .identity import validate_profile
 from .mail import (MailError, MailSession, MailSessionError, Mailbox, MailTimeout,
                    make_provider)
 from .proxy import parse_proxy
-from .runner import load_profile
+from .runner import load_profile, save_profile
 from .store import Account, Store
 from .util import ConfigError, friendly_exc
 
@@ -143,12 +143,16 @@ def verify_account(settings: Settings, adapter: Adapter, account: Account, *,
                     pass
                 ctx.http = None
         else:
-            with BrowserSession(profile=profile, profile_dir=profile_dir,
-                                proxy=proxy, engine=chosen_engine,
-                                headed=headed) as session:
-                ctx.page = session.page
-                ctx.session = session
-                verified, error = verify_in_browser(ctx, session)
+            try:
+                with BrowserSession(profile=profile, profile_dir=profile_dir,
+                                    proxy=proxy, engine=chosen_engine,
+                                    headed=headed) as session:
+                    ctx.page = session.page
+                    ctx.session = session
+                    verified, error = verify_in_browser(ctx, session)
+            finally:
+                if profile.get("camoufox_fp") is not None:
+                    save_profile(settings, profile)
 
         session_error: str | None = None
         if mail_provider is not None and mailbox is not None:

@@ -13,6 +13,7 @@ from typing import Any
 
 import requests
 
+from .mouse import human_click
 from .util import AutoregError, redact
 
 
@@ -146,7 +147,10 @@ def click_by_vision(page: Any, *, target: str | None, description: str,
         raise VisionError(f"click_by_vision: could not parse a point from {redact(answer)!r}")
     x = offset_x + float(match.group(1))
     y = offset_y + float(match.group(2))
-    page.mouse.click(x, y)
+    # human_click over raw page.mouse.click: works on Camoufox (Firefox) too,
+    # because the humanized move dispatches the events that the bare click
+    # sometimes skips on non-Chromium engines.
+    human_click(page, x, y)
     return {"ok": True, "x": x, "y": y, "answer": answer}
 
 

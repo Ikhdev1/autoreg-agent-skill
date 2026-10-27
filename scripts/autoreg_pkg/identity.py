@@ -17,6 +17,8 @@ import json
 import os
 import platform
 import random
+from dataclasses import asdict, is_dataclass
+from importlib import import_module
 from typing import Any
 
 from .util import ConfigError, now_iso
@@ -267,25 +269,66 @@ def init_script(profile: dict[str, Any]) -> str:
 })();""" % json.dumps(payload, ensure_ascii=True)
 
 
-def camoufox_fingerprint(profile: dict[str, Any]) -> dict[str, Any]:
-    """Generate and cache a full Camoufox fingerprint for this identity."""
-    cached = profile.get("camoufox_fp")
-    if cached:
+def _restore_camoufox_fingerprint(cached: dict[str, Any], backend: Any) -> Any:
+    # BrowserForge launchers read attributes and call asdict; fpgen uses dicts.
+    if not is_dataclass(getattr(backend, "Fingerprint", None)):
         return cached
+    from browserforge.fingerprints import NavigatorFingerprint, ScreenFingerprint, VideoCard
+
     try:
-        from camoufox.fingerprints import Screen, generate_fingerprint
+        data = dict(cached)
+        screen_type = (backend.ExtendedScreen if "screenY" in data["screen"]
+                       else ScreenFingerprint)
+        data["screen"] = screen_type(**data["screen"])
+        data["navigator"] = NavigatorFingerprint(**data["navigator"])
+        if data.get("videoCard") is not None:
+            data["videoCard"] = VideoCard(**data["videoCard"])
+        return backend.Fingerprint(**data)
+    except (KeyError, TypeError, AttributeError) as exc:
+        raise ConfigError("Saved Camoufox fingerprint is incompatible with the installed backend") from exc
+
+
+def camoufox_fingerprint(profile: dict[str, Any]) -> Any:
+    """Reuse a saved identity in the representation the installed launcher needs.
+
+    The JSON-safe camoufox_fp persists across processes. camoufox_fp_obj only
+    caches the live dict or BrowserForge dataclass and is never serialised.
+    """
+    cached_obj = profile.get("camoufox_fp_obj")
+    if cached_obj is not None:
+        return cached_obj
+    try:
+        backend = import_module("camoufox.fingerprints")
     except Exception as exc:  # pragma: no cover - optional dependency
         raise ConfigError("camoufox is not installed; use --engine patchright") from exc
+    cached = profile.get("camoufox_fp")
+    if cached is not None:
+        fingerprint = _restore_camoufox_fingerprint(cached, backend)
+        profile["camoufox_fp_obj"] = fingerprint
+        return fingerprint
     screen = profile["screen"]
-    fp = generate_fingerprint(
-        screen=Screen(min_width=screen["width"], max_width=screen["width"],
-                      min_height=screen["height"], max_height=screen["height"]),
-        os=profile["os"],
-    )
-    # JSON round-trip both validates serialisability and drops odd types.
-    fp = json.loads(json.dumps(fp, default=str))
-    profile["camoufox_fp"] = fp
-    return fp
+    screen_type = getattr(backend, "Screen", None)
+    if screen_type is not None:
+        fingerprint = backend.generate_fingerprint(
+            screen=screen_type(min_width=screen["width"], max_width=screen["width"],
+                               min_height=screen["height"], max_height=screen["height"]),
+            os=profile["os"],
+        )
+    else:
+        fingerprint = backend.generate_fingerprint(
+            window=(screen["width"], screen["height"]),
+            os=profile["os"],
+        )
+    if isinstance(fingerprint, dict):
+        cached = fingerprint
+    else:
+        try:
+            cached = asdict(fingerprint)
+        except TypeError as exc:
+            raise ConfigError("Camoufox returned an unsupported fingerprint type") from exc
+    profile["camoufox_fp"] = cached
+    profile["camoufox_fp_obj"] = fingerprint
+    return fingerprint
 
 
 def validate_profile(profile: dict[str, Any]) -> list[str]:
@@ -331,7 +374,8 @@ def chromium_args(profile: dict[str, Any], *, proxy: bool) -> list[str]:
 
 def public_profile(profile: dict[str, Any]) -> dict[str, Any]:
     """Profile without the bulky Camoufox blob."""
-    out = {k: v for k, v in profile.items() if k != "camoufox_fp"}
+    out = {k: v for k, v in profile.items()
+           if k not in ("camoufox_fp", "camoufox_fp_obj")}
     out["has_camoufox_fp"] = bool(profile.get("camoufox_fp"))
     return out
 

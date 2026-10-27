@@ -45,6 +45,31 @@ class EndToEndTest(unittest.TestCase):
             import shutil
             shutil.rmtree(cls.tmp, ignore_errors=True)
 
+    @unittest.skipUnless(ENGINE == "camoufox", "Camoufox-specific persistent identity")
+    def test_0_first_fpcheck_keeps_identity_across_processes(self) -> None:
+        proc = run_cli(self.home, [
+            "profile", "new", "--seed", "first-fpcheck", "--os", "windows",
+            "--engine", "camoufox", "--json",
+        ])
+        self.assertEqual(proc.returncode, 0, proc.stderr + proc.stdout)
+        profile = parse_json(proc)
+        path = Path(profile["path"])
+        snapshots = []
+        for _ in range(2):
+            proc = run_cli(self.home, [
+                "profile", "fpcheck", profile["id"], "--engine", "camoufox", "--json",
+            ])
+            self.assertEqual(proc.returncode, 0, proc.stderr + proc.stdout)
+            snapshots.append(parse_json(proc)["actual"])
+            saved = json.loads(path.read_text(encoding="utf-8"))
+            self.assertIsInstance(saved["camoufox_fp"], dict)
+            if len(snapshots) == 1:
+                expected = saved["camoufox_fp"]
+            else:
+                self.assertEqual(saved["camoufox_fp"], expected)
+        for key in ("ua", "platform", "language", "timezone", "screen", "webgl"):
+            self.assertEqual(snapshots[0][key], snapshots[1][key], key)
+
     def test_1_browser_signup_verify_fpcheck(self) -> None:
         proc = run_cli(self.home, [
             "run", "mock.yaml", "--count", "1", "--engine", ENGINE,
@@ -56,6 +81,12 @@ class EndToEndTest(unittest.TestCase):
         self.assertTrue(summary["results"][0]["account_id"])
         account_id = summary["results"][0]["account_id"]
         profile_id = summary["results"][0]["profile_id"]
+        profile_path = self.home / ".autoreg" / "profiles" / (profile_id + ".json")
+        if ENGINE == "camoufox":
+            # Old releases could save accounts without a generated fingerprint.
+            saved = json.loads(profile_path.read_text(encoding="utf-8"))
+            saved["camoufox_fp"] = None
+            profile_path.write_text(json.dumps(saved), encoding="utf-8")
 
         proc = run_cli(self.home, [
             "verify", "mock.yaml", "--account", str(account_id),
@@ -63,6 +94,9 @@ class EndToEndTest(unittest.TestCase):
         ])
         self.assertEqual(proc.returncode, 0, proc.stderr + proc.stdout)
         self.assertTrue(parse_json(proc)["ok"])
+        if ENGINE == "camoufox":
+            saved = json.loads(profile_path.read_text(encoding="utf-8"))
+            self.assertIsInstance(saved["camoufox_fp"], dict)
 
         proc = run_cli(self.home, [
             "profile", "fpcheck", profile_id, "--engine", ENGINE, "--json",
